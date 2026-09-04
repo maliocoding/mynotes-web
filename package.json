@@ -1,17 +1,36 @@
 {
-  "name": "notes",
+  "name": "mynotes-web",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "Aplikasi catatan pribadi ala Google Keep untuk single user. Dibangun dengan Next.js 16, Prisma, dan SQLite.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maliocoding/mynotes-web.git"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "build": "next build && node scripts/prepare-standalone.mjs",
+    "start": "pm2 restart notes --update-env",
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "pm2:status": "pm2 ls",
+    "pm2:logs": "pm2 logs notes",
+    "pm2:stop": "pm2 stop notes"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cross-env": "^10.1.0",
+    "jose": "^6.2.10",
+    "lucide-react": "^1.39.0",
     "next": "16.3.4",
+    "prisma": "^6.19.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -21,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

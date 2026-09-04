@@ -1,0 +1,56 @@
+﻿// ============================================================================
+// FILE: prisma/schema.prisma
+// FUNGSI: Definisi struktur database (skema). Mirip file SQL CREATE TABLE,
+//         tapi ditulis dalam bahasa Prisma. Dari sini Prisma membuat migration
+//         dan kode client untuk akses database.
+//
+// CATATAN UNTUK PROGRAMMER PHP:
+// - Database-nya SQLite (file biasa, tanpa server database). Mirip menyimpan
+//   data dalam satu file .sqlite, cocok untuk aplikasi kecil/pribadi.
+// ============================================================================
+
+// Generator: Prisma akan membuatkan kode JavaScript/TypeScript untuk akses DB
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Sumber data: SQLite. Lokasi file database diambil dari .env (DATABASE_URL)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Tabel "notes" - menyimpan semua catatan.
+// Penulisan: camelCase di kode (createdAt), snake_case di database (created_at)
+// lewat @map("..."). @@map("notes") = nama tabel sebenarnya di database.
+// ----------------------------------------------------------------------------
+model Note {
+  id             String   @id @default(uuid())        // ID unik, dibuat otomatis (UUID)
+  title          String   @default("")                // judul catatan
+  body           String   @default("")                // isi catatan
+  color          String   @default("default")         // warna kartu
+  pinned         Boolean  @default(false)             // disematkan di atas?
+  archived       Boolean  @default(false)             // diarsipkan?
+  trashed        Boolean  @default(false)             // di tong sampah?
+  checklistItems String   @default("[]") @map("checklist_items") // item checklist (string JSON)
+  labels         String   @default("[]")              // label (string JSON)
+  createdAt      DateTime @default(now()) @map("created_at")     // waktu dibuat
+  updatedAt      DateTime @updatedAt @map("updated_at")          // waktu diubah (otomatis)
+  deletedAt      DateTime? @map("deleted_at")                    // waktu dihapus (boleh kosong/null)
+
+  // Index mempercepat pencarian/pengurutan pada kolom-kolom ini
+  @@index([updatedAt])
+  @@index([archived, trashed])
+  @@map("notes")
+}
+
+// ----------------------------------------------------------------------------
+// Tabel "settings" - penyimpanan key-value sederhana untuk pengaturan aplikasi.
+// ----------------------------------------------------------------------------
+model Setting {
+  key   String @id   // nama pengaturan (kunci utama)
+  value String       // nilainya
+
+  @@map("settings")
+}

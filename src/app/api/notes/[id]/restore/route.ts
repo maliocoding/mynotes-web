@@ -1,0 +1,2 @@
+import { db } from "@/lib/db"; import { isAuthenticated } from "@/lib/auth"; import { response, unauthorized } from "@/lib/http"; import { serializeNote } from "@/lib/notes"; import { broadcast } from "@/lib/events";
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) { if (!(await isAuthenticated(request))) return unauthorized(); const id = (await params).id; const note = await db.note.update({ where: { id }, data: { trashed: false, deletedAt: null } }); broadcast("note-updated", id); return response(serializeNote(note)); }
