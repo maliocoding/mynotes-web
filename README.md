@@ -285,7 +285,6 @@ repo tersebut untuk petunjuk instalasi dan build APK.
 
 ## 📄 Dokumentasi Tambahan
 
-- **[PRD-MyNotes.md](PRD-MyNotes.md)** — Product Requirement Document
 - **[PANDUAN.md](PANDUAN.md)** — Panduan kode lengkap (cocok untuk programmer PHP yang baru belajar Next.js)
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Panduan deployment Windows + Cloudflare Tunnel
 

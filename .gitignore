@@ -29,6 +29,7 @@
 
 # dokumen pribadi (bukan bagian kode publik)
 DOKUMENTASI-MyNotes.docx
+PRD-MyNotes.md
 
 # debug
 npm-debug.log*
