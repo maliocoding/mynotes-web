@@ -17,6 +17,7 @@ import { isAuthenticated } from "@/lib/auth";
 import { response, unauthorized } from "@/lib/http";
 import { serializeNote } from "@/lib/notes";
 import { noteInputSchema } from "@/lib/schemas";
+import { hashPin } from "@/lib/pin";
 import { broadcast } from "@/lib/events";
 
 // ----------------------------------------------------------------------------
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
   });
 
   // Ubah tiap catatan ke format JSON API lalu kirim
-  return response(notes.map(serializeNote));
+  return response(notes.map((n) => serializeNote(n)));
 }
 
 // ----------------------------------------------------------------------------
@@ -52,13 +53,14 @@ export async function POST(request: Request) {
   const parsed = noteInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return response({ issues: parsed.error.flatten() }, { status: 400 }); // 400 = Bad Request
 
-  // Pisahkan checklist_items & labels karena di database disimpan sebagai string JSON
-  const { checklist_items, labels, ...input } = parsed.data;
+  // Pisahkan checklist_items, labels, pin, remove_pin karena butuh penanganan khusus
+  const { checklist_items, labels, pin, remove_pin, ...input } = parsed.data;
 
   // Simpan ke database (mirip INSERT di PHP)
   const note = await db.note.create({
     data: {
       ...input, // title, body, color, pinned, dll (yang dikirim client)
+      pinHash: pin ? hashPin(pin) : null, // kalau ada PIN, simpan hash-nya
       checklistItems: JSON.stringify(checklist_items ?? []), // array -> string JSON
       labels: JSON.stringify(labels ?? []),
     },

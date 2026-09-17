@@ -28,6 +28,8 @@ export const noteInputSchema = z.object({
   pinned: z.boolean().optional(),
   archived: z.boolean().optional(),
   trashed: z.boolean().optional(),
+  pin: z.string().regex(/^\d{4,6}$/).optional(),   // atur/kunci catatan dengan PIN numerik 4-6 digit
+  remove_pin: z.boolean().optional(),              // lepas PIN (buka kunci permanen)
   checklist_items: z.array(checklistItemSchema).max(500).optional(), // maks 500 item
   labels: z.array(z.string().trim().min(1).max(50)).max(100).optional(), // maks 100 label
 }).strict(); // Tolak field asing yang tidak ada di skema

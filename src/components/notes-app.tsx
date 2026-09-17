@@ -25,6 +25,7 @@ import type { Note, View } from "@/types/note";
 const emptyNote: Note = {
   id: "", title: "", body: "", color: "default",
   pinned: false, archived: false, trashed: false,
+  locked: false, pin_hash: null,
   checklist_items: [], labels: [],
   created_at: "", updated_at: "", deleted_at: null,
 };
@@ -86,8 +87,9 @@ export function NotesApp() {
     }
   }
 
-  // Ubah sebagian data catatan (pin, arsip, judul, dll)
-  async function patch(id: string, data: Partial<Note>) {
+  // Ubah sebagian data catatan (pin, arsip, judul, dll). Mendukung juga
+  // pengaturan PIN (`pin`) dan pelepasan PIN (`remove_pin`).
+  async function patch(id: string, data: Partial<Note> & { pin?: string; remove_pin?: boolean }) {
     const r = await fetch(`/notes/api/notes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -97,6 +99,28 @@ export function NotesApp() {
       const n = (await r.json()).data;
       // Ganti catatan lama dengan versi baru di state
       setNotes((x) => x.map((v) => (v.id === id ? n : v)));
+    }
+  }
+
+  // Buka catatan. Bila terkunci PIN, minta PIN dulu via endpoint unlock.
+  async function openNote(n: Note) {
+    if (!n.locked) {
+      setEditor(n);
+      return;
+    }
+    const pin = prompt("Catatan terkunci. Masukkan PIN:");
+    if (pin === null) return;
+    const r = await fetch(`/notes/api/notes/${n.id}/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
+    if (r.status === 401) { alert("PIN salah."); return; }
+    if (r.status === 429) { alert("Terlalu banyak percobaan. Coba lagi nanti."); return; }
+    if (r.ok) {
+      const unlocked = (await r.json()).data;
+      setNotes((x) => x.map((v) => (v.id === n.id ? { ...unlocked, locked: true } : v)));
+      setEditor({ ...unlocked, locked: true });
     }
   }
 
@@ -208,7 +232,7 @@ export function NotesApp() {
               <NoteCard
                 key={n.id}
                 note={n}
-                onOpen={() => setEditor(n)}
+                onOpen={() => openNote(n)}
                 onPatch={(d) => patch(n.id, d)}
                 onDelete={(p) => remove(n.id, p)}
                 onRestore={() => restore(n.id)}

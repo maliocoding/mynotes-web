@@ -30,5 +30,5 @@ export async function POST(request: Request) {
     orderBy: { updatedAt: "asc" },
   });
 
-  return response(notes.map(serializeNote));
+  return response(notes.map((n) => serializeNote(n)));
 }

@@ -12,7 +12,7 @@
 
 "use client";
 
-import { Archive, ArchiveRestore, Pin, PinOff, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Lock, Pin, PinOff, RotateCcw, Trash2 } from "lucide-react";
 import type { Note } from "@/types/note";
 
 // Definisi props yang diterima komponen ini
@@ -46,7 +46,13 @@ export function NoteCard({
         {note.pinned ? <PinOff size={18} /> : <Pin size={18} />}
       </button>
 
-      {/* Judul & isi hanya ditampilkan kalau tidak kosong */}
+      {/* Judul & isi hanya ditampilkan kalau tidak kosong. Catatan terkunci
+          PIN ditandai ikon gembok; isinya tidak ditampilkan (disamarkan server). */}
+      {note.locked && (
+        <div className="locked-badge">
+          <Lock size={14} /> Terkunci
+        </div>
+      )}
       {note.title && <h3>{note.title}</h3>}
       {note.body && <p>{note.body}</p>}
 

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // FILE: prisma/schema.prisma
 // FUNGSI: Definisi struktur database (skema). Mirip file SQL CREATE TABLE,
 //         tapi ditulis dalam bahasa Prisma. Dari sini Prisma membuat migration
@@ -33,6 +33,7 @@ model Note {
   pinned         Boolean  @default(false)             // disematkan di atas?
   archived       Boolean  @default(false)             // diarsipkan?
   trashed        Boolean  @default(false)             // di tong sampah?
+  pinHash        String?  @map("pin_hash")            // hash PIN pengunci catatan (null = tidak terkunci)
   checklistItems String   @default("[]") @map("checklist_items") // item checklist (string JSON)
   labels         String   @default("[]")              // label (string JSON)
   createdAt      DateTime @default(now()) @map("created_at")     // waktu dibuat

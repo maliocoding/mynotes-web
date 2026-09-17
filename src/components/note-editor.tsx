@@ -1,24 +1,24 @@
 ﻿// ============================================================================
 // FILE: src/components/note-editor.tsx
 // FUNGSI: Jendela modal untuk mengedit satu catatan (judul, isi, warna,
-//         checklist, label, arsip, hapus).
+//         checklist, label, arsip, hapus, kunci PIN).
 //
 // CATATAN UNTUK PROGRAMMER PHP:
-// - Perubahan TIDAK langsung disimpan ke database. Kita pakai "draft"
-//   (salinan sementara). Saat pengguna menekan "Tutup", draft baru dikirim
-//   ke server lewat onSave. Ini pola "edit lokal dulu, simpan belakangan".
-// - "..." (spread operator) = menyalin objek/array. Mirip array_merge di PHP.
-//   Contoh: {...draft, title: "baru"} = salin draft, ganti title-nya.
+// - Perubahan TIDAK langsung disimpan. Kita pakai "draft" (salinan sementara).
+//   Saat pengguna menekan "Tutup", draft baru dikirim via onSave.
 // ============================================================================
 
 "use client";
 
 import { useEffect, useState } from "react";
-import { Archive, CheckSquare, Palette, Pin, Tag, Trash2, X } from "lucide-react";
+import { Archive, CheckSquare, Lock, LockOpen, Palette, Pin, Tag, Trash2, X } from "lucide-react";
 import type { ChecklistItem, Note } from "@/types/note";
 
 // Daftar warna yang tersedia (harus sama dengan enum di lib/schemas.ts)
 const colors = ["default", "red", "orange", "yellow", "green", "teal", "blue", "darkblue", "purple", "pink", "brown", "gray"];
+
+// Payload yang bisa dikirim saat menyimpan: field catatan + pengaturan PIN
+export type SavePayload = Partial<Note> & { pin?: string; remove_pin?: boolean };
 
 export function NoteEditor({
   note,     // catatan asli yang sedang diedit
@@ -28,17 +28,19 @@ export function NoteEditor({
 }: {
   note: Note;
   onClose: () => void;
-  onSave: (data: Partial<Note>) => Promise<void>;
+  onSave: (data: SavePayload) => Promise<void>;
   onDelete: () => void;
 }) {
   // "draft" = salinan catatan yang sedang diedit (belum tersimpan)
   const [draft, setDraft] = useState(note);
   // Mode checklist aktif kalau catatan sudah punya item checklist
   const [checkMode, setCheckMode] = useState(note.checklist_items.length > 0);
+  // Status pengaturan PIN yang belum disimpan
+  const [pinToSet, setPinToSet] = useState<string | null>(null);
+  const [removePin, setRemovePin] = useState(false);
 
   // Kalau catatan yang dibuka berganti, reset draft-nya
-  // useEffect = jalankan kode setiap nilai [note] berubah.
-  useEffect(() => setDraft(note), [note]);
+  useEffect(() => { setDraft(note); setPinToSet(null); setRemovePin(false); }, [note]);
 
   // Helper kecil untuk mengubah sebagian field draft
   const update = (data: Partial<Note>) => setDraft((d) => ({ ...d, ...data }));
@@ -53,6 +55,7 @@ export function NoteEditor({
       archived: draft.archived,
       checklist_items: draft.checklist_items,
       labels: draft.labels,
+      ...(removePin ? { remove_pin: true } : pinToSet ? { pin: pinToSet } : {}),
     });
     onClose();
   }
@@ -73,6 +76,28 @@ export function NoteEditor({
       checklist_items: draft.checklist_items.map((i) => (i.id === id ? { ...i, ...data } : i)),
     });
   }
+
+  // Atur PIN baru: minta input 4-6 digit
+  function handleLock() {
+    const value = prompt("Masukkan PIN baru (4-6 digit angka) untuk mengunci catatan ini:");
+    if (value === null) return;
+    if (!/^\d{4,6}$/.test(value.trim())) {
+      alert("PIN harus 4-6 digit angka.");
+      return;
+    }
+    setPinToSet(value.trim());
+    setRemovePin(false);
+  }
+
+  // Lepas PIN (buka kunci permanen)
+  function handleUnlockPin() {
+    if (confirm("Lepas PIN dari catatan ini? Catatan akan terbuka tanpa PIN.")) {
+      setRemovePin(true);
+      setPinToSet(null);
+    }
+  }
+
+  const hasPin = draft.pin_hash != null;
 
   return (
     // Klik area gelap di luar modal = tutup & simpan
@@ -123,6 +148,12 @@ export function NoteEditor({
             if (value !== null) update({ labels: value.split(",").map((x) => x.trim()).filter(Boolean) });
           }}><Tag size={19} /></button>
           <button title="Arsip" onClick={() => update({ archived: !draft.archived })}><Archive size={19} /></button>
+          {/* Kunci / lepas PIN */}
+          {hasPin || pinToSet ? (
+            <button title="Lepas PIN" onClick={handleUnlockPin}><LockOpen size={19} /></button>
+          ) : (
+            <button title="Kunci dengan PIN" onClick={handleLock}><Lock size={19} /></button>
+          )}
           <button title="Sampah" onClick={onDelete}><Trash2 size={19} /></button>
           <button className="close-editor" onClick={close}>Tutup</button>
         </div>

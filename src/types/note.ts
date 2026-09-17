@@ -1,11 +1,6 @@
 ﻿// ============================================================================
 // FILE: src/types/note.ts
 // FUNGSI: Mendefinisikan bentuk data (tipe) yang dipakai di sisi client.
-//
-// CATATAN UNTUK PROGRAMMER PHP:
-// - TypeScript punya "tipe data" yang dicek saat compile, mirip
-//   type-hint di PHP 8 (string, int, array) tapi jauh lebih ketat.
-// - File ini seperti "kontrak": semua komponen tahu bentuk data Note.
 // ============================================================================
 
 // Satu item dalam checklist (daftar centang)
@@ -20,6 +15,8 @@ export type Note = {
   pinned: boolean;
   archived: boolean;
   trashed: boolean;
+  locked: boolean;              // apakah catatan terkunci PIN
+  pin_hash: string | null;      // hash PIN (BUKAN PIN asli)
   checklist_items: ChecklistItem[];
   labels: string[];
   created_at: string;        // string tanggal format ISO, bukan objek Date
@@ -28,5 +25,4 @@ export type Note = {
 };
 
 // Tampilan/halaman yang tersedia di aplikasi.
-// `label:${string}` artinya string yang diawali "label:", misal "label:pekerjaan".
 export type View = "notes" | "archive" | "trash" | `label:${string}`;

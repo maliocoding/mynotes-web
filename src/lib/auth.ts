@@ -30,7 +30,6 @@ const secret = () => new TextEncoder().encode(process.env.JWT_SECRET);
 // Fungsi: createToken()
 // Dipanggil saat user berhasil login. Membuat token JWT baru.
 // Token berlaku selama 30 hari ("30d").
-// Di PHP mirip: JWT::encode(['role' => 'owner', 'exp' => time() + 30*24*3600], $secret)
 // ----------------------------------------------------------------------------
 export async function createToken() {
   return new SignJWT({ role: "owner" })        // Data (payload) yang disimpan dalam token
@@ -43,17 +42,14 @@ export async function createToken() {
 // ----------------------------------------------------------------------------
 // Fungsi: verifyToken(token)
 // Mengecek apakah token JWT valid (tidak palsu dan belum kedaluwarsa).
-// Mengembalikan true jika valid, false jika tidak.
-// Di PHP mirip: try { JWT::decode($token, $secret); return true; } catch { return false; }
 // ----------------------------------------------------------------------------
 export async function verifyToken(token?: string | null) {
-  // Jika token kosong atau JWT_SECRET belum diset, langsung dianggap tidak valid
   if (!token || !process.env.JWT_SECRET) return false;
   try {
-    await jwtVerify(token, secret()); // Verifikasi tanda tangan & masa berlaku token
+    await jwtVerify(token, secret());
     return true;
   } catch {
-    return false; // Token rusak / palsu / kedaluwarsa
+    return false;
   }
 }
 
@@ -61,16 +57,13 @@ export async function verifyToken(token?: string | null) {
 // Fungsi: isAuthenticated(request)
 // Mengecek apakah user yang sedang request sudah login.
 // Token bisa dikirim lewat 2 cara:
-//   1. Header "Authorization: Bearer <token>" (biasanya dari aplikasi/script lain)
+//   1. Header "Authorization: Bearer ***" (dari aplikasi/script lain)
 //   2. Cookie browser (dari login di halaman web)
-// Di PHP mirip: if (isset($_SESSION['user_id'])) { ... }
 // ----------------------------------------------------------------------------
 export async function isAuthenticated(request?: Request) {
-  // Cara 1: Ambil token dari header Authorization (format: "Bearer <token>")
   const bearer = request?.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (bearer) return verifyToken(bearer);
 
-  // Cara 2: Ambil token dari cookie browser
   const cookieStore = await cookies();
   return verifyToken(cookieStore.get(COOKIE_NAME)?.value);
 }
