@@ -5,7 +5,8 @@
     cwd: 'C:/nextjs/notes',
     env: {
       NODE_ENV: 'production',
-      PORT: 3007
+      PORT: 3007,
+      HOSTNAME: '0.0.0.0'
     }
   }]
 };
