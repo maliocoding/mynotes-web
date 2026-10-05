@@ -27,7 +27,9 @@ Aplikasi mobile-nya ada di repo terpisah:
 | 🔍 Pencarian | Cari judul, isi, dan item checklist (realtime) |
 | ⚡ Real-time | Perubahan tampil di semua browser otomatis (SSE) |
 | 📱 Sinkronisasi API | Menyediakan endpoint untuk aplikasi mobile (Flutter) |
-| 🔒 Keamanan | Rate limit login, timing-safe compare, header keamanan, CORS, validasi Zod |
+| 🔑 Ganti password | Ganti password login dari dalam aplikasi, **wajib verifikasi PIN** + password lama |
+| 🛡️ Ganti PIN | PIN verifikasi bisa diganti sendiri kapan saja dari menu Pengaturan |
+| 🔒 Keamanan | Rate limit login, timing-safe compare, header keamanan, CORS, validasi Zod, password & PIN disimpan sebagai hash (PBKDF2) |
 
 ---
 
@@ -51,6 +53,8 @@ Aplikasi mobile-nya ada di repo terpisah:
 - [Menjalankan di Production (PM2)](#-menjalankan-di-production-pm2)
 - [Konfigurasi Environment](#-konfigurasi-environment)
 - [Endpoint API](#-endpoint-api)
+- [Masa Berlaku Sesi (token otomatis diperpanjang)](#-masa-berlaku-sesi-token-otomatis-diperpanjang)
+- [Mengatur Password & PIN](#-mengatur-password--pin)
 - [Deploy di Windows + Cloudflare Tunnel](#-deploy-di-windows--cloudflare-tunnel)
 - [Backup Database](#-backup-database)
 - [Struktur Proyek](#-struktur-proyek)
@@ -181,7 +185,10 @@ Semua endpoint berada di bawah `/notes/api`. Autentikasi memakai cookie `mynotes
 |---|---|---|
 | `POST` | `/auth/login` | Login dengan password |
 | `POST` | `/auth/logout` | Logout |
-| `GET` | `/auth/session` | Cek status login |
+| `GET` | `/auth/session` | Cek status login. **Memperpanjang token otomatis** (lihat di bawah) |
+| `GET` | `/auth/change-password` | Status PIN aplikasi (masih PIN awal atau sudah diganti) |
+| `POST` | `/auth/change-password` | Ganti password — butuh `pin`, `current_password`, `new_password`, `confirm_password` |
+| `POST` | `/auth/pin` | Ganti PIN aplikasi — butuh `pin_lama`, `pin_baru`, `konfirmasi_pin` |
 | `GET` | `/events` | Aliran **SSE** untuk real-time update |
 | `GET` | `/notes` | Ambil semua catatan |
 | `POST` | `/notes` | Buat catatan baru |
@@ -189,7 +196,70 @@ Semua endpoint berada di bawah `/notes/api`. Autentikasi memakai cookie `mynotes
 | `PATCH` | `/notes/[id]` | Ubah catatan (partial update) |
 | `DELETE` | `/notes/[id]` | Hapus catatan (masuk sampah) |
 | `POST` | `/notes/[id]/restore` | Pulihkan catatan dari sampah |
+| `POST` | `/notes/[id]/unlock` | Buka catatan terkunci dengan PIN catatan |
 | `POST` | `/sync` | Sinkronisasi inkremental untuk mobile (offline-first) |
+
+> `POST /auth/change-password` dan `POST /auth/pin` wajib menyertakan sesi login
+> (cookie `mynotes_session` atau header `Authorization: Bearer ***).
+
+---
+
+## 🔄 Masa Berlaku Sesi (token otomatis diperpanjang)
+
+Token login berlaku **365 hari** (`SESSION_DURATION` di `src/lib/auth.ts`).
+
+Selain itu, `GET /auth/session` menerapkan **perpanjangan otomatis (sliding
+session)**: setiap kali dipanggil dengan token yang masih valid, server
+menerbitkan token **baru** berumur penuh dan mengirimkannya lewat:
+
+- **body** respons → `{ "data": { "authenticated": true, "token": "<baru>" } }`
+- **header** `Set-Cookie` → untuk versi web (cookie diperbarui sendiri)
+
+**Klien wajib menyimpan token baru itu:**
+- Web: otomatis, karena cookie diperbarui server.
+- Mobile: simpan `data.token` yang diterima (sudah dikerjakan di
+  `NotesApi.verifySession()` pada repo mobile).
+
+Efeknya: selama aplikasi dipakai, sesi terus diperpanjang dan pengguna tidak
+tiba-tiba ter-logout. Kalau token **sudah** kedaluwarsa (mis. tidak dibuka
+lebih dari setahun), server membalas `401` dan aplikasi meminta login ulang.
+
+> ⚠️ Mengganti `JWT_SECRET` di `.env` membuat **semua token lama langsung tidak
+> berlaku** (semua perangkat harus login ulang). Ini cara sah untuk memutus
+> semua sesi sekaligus.
+
+---
+
+## 🔑 Mengatur Password & PIN
+
+Ada **dua** kredensial berbeda:
+
+| | Fungsi | Keterangan |
+|---|---|---|
+| **Password** | Untuk **login** ke aplikasi | Awalnya diambil dari `NOTES_PASSWORD` di `.env`. Setelah diganti dari menu Pengaturan, yang dipakai adalah hash di tabel `settings`. |
+| **PIN** | Untuk **verifikasi saat ganti password** | Bukan untuk login. PIN awal ditentukan di `src/lib/settings.ts` (`DEFAULT_PIN`) dan **sebaiknya diganti** saat pertama kali memakai aplikasi. |
+
+### Cara mengganti
+
+1. Login ke aplikasi
+2. Klik ikon **⚙️ (Pengaturan Keamanan)** di kanan atas
+3. Tab **Ubah PIN** — ganti PIN verifikasi menjadi milik Anda sendiri
+4. Tab **Ubah Password** — isi PIN, password lama, password baru (min. 8 karakter), dan konfirmasinya
+
+Semua nilai disimpan sebagai **hash PBKDF2-SHA256** (100.000 iterasi) — password
+dan PIN asli tidak pernah tersimpan di database.
+
+### Kembali ke nilai awal (reset)
+
+```bash
+node scripts/pasang-password-pin.mjs
+```
+
+Script ini menulis ulang `password_hash` dan `pin_hash` di tabel `settings`
+ke nilai awal proyek. Berguna kalau PIN/password lupa atau setelah pengujian.
+
+> 🔐 Nilai password/PIN tidak ditulis di dokumentasi ini karena repo bersifat
+> publik. Nilai aktif hanya ada di `.env` dan `prisma/data/notes.db`.
 
 ---
 
@@ -231,11 +301,13 @@ mynotes-web/
 ├── next.config.ts             # Konfigurasi Next.js (basePath, standalone, security headers)
 ├── ecosystem.config.cjs       # Konfigurasi PM2
 ├── start-with-env.js          # Load .env lalu start server standalone
+├── AGENTS.md                  # Peta cepat untuk AI/agent & developer
 ├── prisma/
 │   ├── schema.prisma          # Definisi tabel database (SQLite)
 │   └── migrations/            # Riwayat migrasi database
 ├── scripts/
 │   ├── backup.ps1             # Backup database SQLite
+│   ├── pasang-password-pin.mjs # Reset password & PIN ke nilai awal
 │   ├── gen-password.ts        # Generator JWT_SECRET acak
 │   └── prepare-standalone.mjs # Salin static & public ke output standalone
 ├── public/                    # Aset statis
@@ -244,27 +316,33 @@ mynotes-web/
     │   ├── layout.tsx         # Kerangka HTML semua halaman
     │   ├── page.tsx           # Halaman utama (/)
     │   └── api/               # Semua endpoint API
-    │       ├── auth/login/route.ts     # POST - login
-    │       ├── auth/logout/route.ts    # POST - logout
-    │       ├── auth/session/route.ts   # GET  - cek status login
-    │       ├── events/route.ts         # GET  - SSE real-time
-    │       ├── notes/route.ts          # GET semua / POST buat catatan
-    │       ├── notes/[id]/route.ts     # GET/PATCH/DELETE satu catatan
-    │       ├── notes/[id]/restore/route.ts # POST pulihkan dari sampah
-    │       └── sync/route.ts           # POST sinkronisasi incremental
+    │       ├── auth/login/route.ts            # POST - login
+    │       ├── auth/logout/route.ts            # POST - logout
+    │       ├── auth/session/route.ts           # GET  - cek status login
+    │       ├── auth/change-password/route.ts   # GET status PIN / POST ganti password
+    │       ├── auth/pin/route.ts               # POST - ganti PIN aplikasi
+    │       ├── events/route.ts                 # GET  - SSE real-time
+    │       ├── notes/route.ts                  # GET semua / POST buat catatan
+    │       ├── notes/[id]/route.ts             # GET/PATCH/DELETE satu catatan
+    │       ├── notes/[id]/restore/route.ts     # POST pulihkan dari sampah
+    │       ├── notes/[id]/unlock/route.ts      # POST buka catatan terkunci (PIN)
+    │       └── sync/route.ts                   # POST sinkronisasi incremental
     ├── components/            # Komponen React (frontend)
     │   ├── notes-app.tsx      # Komponen utama aplikasi
     │   ├── login.tsx          # Form login
     │   ├── note-card.tsx      # Kartu catatan
-    │   └── note-editor.tsx    # Modal editor catatan
+    │   ├── note-editor.tsx    # Modal editor catatan
+    │   └── settings-modal.tsx # Modal Pengaturan Keamanan (ubah password/PIN)
     ├── lib/                   # Logika pendukung (backend)
     │   ├── auth.ts            # JWT: buat & verifikasi token
     │   ├── db.ts              # Koneksi database (Prisma)
     │   ├── events.ts          # Sistem broadcast real-time (SSE)
     │   ├── http.ts            # Helper respons JSON
     │   ├── notes.ts           # Format data catatan untuk API
+    │   ├── pin.ts             # Hash & verifikasi PIN (PBKDF2)
     │   ├── rate-limit.ts      # Anti brute-force login
-    │   └── schemas.ts         # Validasi input (Zod)
+    │   ├── schemas.ts         # Validasi input (Zod)
+    │   └── settings.ts        # Baca/tulis pengaturan (password & PIN hash)
     └── types/
         └── note.ts            # Definisi tipe data TypeScript
 ```
@@ -285,6 +363,7 @@ repo tersebut untuk petunjuk instalasi dan build APK.
 
 ## 📄 Dokumentasi Tambahan
 
+- **[AGENTS.md](AGENTS.md)** — **Peta cepat untuk AI/agent & developer**: arsitektur, letak kode, jebakan lingkungan, checklist debug. Baca ini dulu sebelum menelusuri repo.
 - **[PANDUAN.md](PANDUAN.md)** — Panduan kode lengkap (cocok untuk programmer PHP yang baru belajar Next.js)
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Panduan deployment Windows + Cloudflare Tunnel
 

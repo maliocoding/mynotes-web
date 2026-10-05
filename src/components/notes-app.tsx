@@ -15,10 +15,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, LogOut, Menu, RefreshCw, Search, StickyNote, Tag, Trash2, X } from "lucide-react";
+import { Archive, LogOut, Menu, RefreshCw, Search, Settings, StickyNote, Tag, Trash2, X } from "lucide-react";
 import { Login } from "./login";
 import { NoteCard } from "./note-card";
 import { NoteEditor } from "./note-editor";
+import { SettingsModal } from "./settings-modal";
 import type { Note, View } from "@/types/note";
 
 // Template catatan kosong (dipakai sebagai nilai awal)
@@ -39,6 +40,7 @@ export function NotesApp() {
   const [query, setQuery] = useState("");              // teks pencarian
   const [editor, setEditor] = useState<Note | null>(null); // catatan yang sedang dibuka di editor
   const [menu, setMenu] = useState(false);             // sidebar terbuka? (untuk tampilan HP)
+  const [settings, setSettings] = useState(false);     // modal Pengaturan Keamanan terbuka?
 
   // ------------------------- MEMUAT DATA -------------------------
   // load(): ambil semua catatan dari API.
@@ -196,6 +198,8 @@ export function NotesApp() {
           {query && <button onClick={() => setQuery("")}><X size={20} /></button>}
         </div>
         <button className="icon-btn hide-mobile" title="Refresh" onClick={load}><RefreshCw /></button>
+        {/* Pengaturan Keamanan: ubah password (dengan verifikasi PIN) & ubah PIN */}
+        <button className="icon-btn" title="Pengaturan Keamanan" onClick={() => setSettings(true)}><Settings /></button>
         {/* Logout: panggil API logout lalu ubah state auth */}
         <button className="icon-btn" title="Logout" onClick={async () => {
           await fetch("/notes/api/auth/logout", { method: "POST" });
@@ -241,6 +245,9 @@ export function NotesApp() {
           </section>
         )}
       </main>
+
+      {/* ---------- MODAL PENGATURAN KEAMANAN ---------- */}
+      {settings && <SettingsModal onClose={() => setSettings(false)} />}
 
       {/* ---------- MODAL EDITOR (muncul kalau ada catatan yang dibuka) ---------- */}
       {editor && (

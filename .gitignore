@@ -54,3 +54,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env.bak.*
+
+# ---------------------------------------------------------------------------
+# APK hasil build aplikasi mobile (file besar, tidak perlu masuk repo)
+/apk/
+
+# ---------------------------------------------------------------------------
+# Harness uji & skrip kerja lokal.
+# Berkas di sini memuat kredensial asli (password/PIN) untuk keperluan
+# pengujian, dan repo ini PUBLIK — jadi wajib tidak ikut ter-commit.
+/tools/
+
+# ---------------------------------------------------------------------------
+# Cadangan berkas sebelum diubah (mis. .env dan database saat perbaikan)
+/.backup/
+

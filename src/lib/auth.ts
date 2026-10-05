@@ -27,15 +27,31 @@ export const COOKIE_NAME = "mynotes_session";
 const secret = () => new TextEncoder().encode(process.env.JWT_SECRET);
 
 // ----------------------------------------------------------------------------
+// Konstanta masa berlaku sesi.
+// Dulu 30 hari; diperpanjang menjadi 365 hari supaya aplikasi mobile tidak
+// ter-logout sendiri setiap bulan. Sesi tetap bisa diputus kapan saja dengan
+// mengganti JWT_SECRET di .env (semua token lama langsung tidak berlaku).
+// Angka ini dipakai konsisten oleh createToken() dan cookieMaxAge().
+// ----------------------------------------------------------------------------
+export const SESSION_DURATION = "365d";
+const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 365;
+
+// ----------------------------------------------------------------------------
+// Fungsi: cookieMaxAge()
+// Masa berlaku cookie (detik). Sengaja disamakan dengan masa berlaku token
+// supaya cookie tidak kedaluwarsa mendahului tokennya.
+// ----------------------------------------------------------------------------
+export const cookieMaxAge = () => SESSION_DURATION_SECONDS;
+
+// ----------------------------------------------------------------------------
 // Fungsi: createToken()
 // Dipanggil saat user berhasil login. Membuat token JWT baru.
-// Token berlaku selama 30 hari ("30d").
 // ----------------------------------------------------------------------------
 export async function createToken() {
   return new SignJWT({ role: "owner" })        // Data (payload) yang disimpan dalam token
     .setProtectedHeader({ alg: "HS256" })       // Algoritma enkripsi HS256 (HMAC + SHA256)
     .setIssuedAt()                              // Catat waktu token dibuat
-    .setExpirationTime("30d")                   // Token kedaluwarsa dalam 30 hari
+    .setExpirationTime(SESSION_DURATION)        // Token kedaluwarsa sesuai SESSION_DURATION
     .sign(secret());                            // Tanda tangani token dengan kunci rahasia
 }
 
